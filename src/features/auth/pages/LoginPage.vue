@@ -9,6 +9,7 @@ import Button from 'primevue/button';
 import Message from 'primevue/message';
 import Checkbox from 'primevue/checkbox';
 import { resolveErrorMessage } from '@/shared/errors/errors';
+import { normalizeLogin } from '@/shared/lib/login';
 import { useLogin } from '../composables/useLogin';
 
 const router = useRouter();
@@ -27,7 +28,7 @@ async function onSubmit() {
   errorMessage.value = '';
   try {
     await login.mutateAsync({
-      email: email.value,
+      email: normalizeLogin(email.value),
       password: password.value,
       rememberMe: rememberMe.value,
     });
@@ -61,10 +62,12 @@ async function onSubmit() {
           <InputText
             id="email"
             v-model="email"
-            type="email"
+            type="text"
             autocomplete="username"
+            maxlength="254"
             :placeholder="t('login.emailPlaceholder')"
             class="w-full"
+            @blur="email = email.trim().toLowerCase()"
           />
         </div>
 

@@ -9,6 +9,13 @@ import PageHeader from '@/shared/ui/PageHeader.vue';
 import StateSection from '@/shared/ui/StateSection.vue';
 import FilterBar from '@/shared/ui/filter/FilterBar.vue';
 import type { FilterField, FilterValues } from '@/shared/ui/filter/types';
+import {
+  fromQueryDate,
+  queryNumber,
+  queryString,
+  toQueryDate,
+  useRegistryQuery,
+} from '@/shared/composables/useRegistryQuery';
 import { usePermissions } from '@/shared/permissions/usePermissions';
 import { PERMISSIONS } from '@/config/permissions';
 import { useOrdersList } from '../composables/useOrdersList';
@@ -25,29 +32,64 @@ const { data: users } = useQuery({
   queryFn: () => dictionariesApi.users(),
 });
 
-const filterModel = ref<FilterValues>({
-  search: '',
-  status: null,
-  responsibleId: null,
-  createdAt: null,
-  amount: null,
-});
+const STATUSES: OrderStatus[] = ['new', 'inProduction', 'ready', 'completed', 'cancelled'];
+const SORT_FIELDS = ['createdAt', 'number', 'totalAmount'] as const;
 
-const params = ref<OrdersListParams>({
-  page: 1,
-  limit: 25,
-  sortBy: 'createdAt',
-  sortOrder: 'desc',
-});
+function readInitial() {
+  const query = router.currentRoute.value.query;
+  const search = queryString(query, 'search') ?? '';
+  const statusRaw = queryString(query, 'status');
+  const status = STATUSES.includes(statusRaw as OrderStatus) ? (statusRaw as OrderStatus) : null;
+  const responsibleId = queryString(query, 'responsibleId') ?? null;
+  const createdFrom = queryString(query, 'createdFrom');
+  const createdTo = queryString(query, 'createdTo');
+  const fromDate = fromQueryDate(createdFrom);
+  const toDate = fromQueryDate(createdTo);
+  const amount = queryNumber(query, 'amount') ?? null;
+  const page = queryNumber(query, 'page') ?? 1;
+  const limit = queryNumber(query, 'limit') ?? 25;
+  const sortByRaw = queryString(query, 'sortBy');
+  const sortBy = SORT_FIELDS.includes(sortByRaw as (typeof SORT_FIELDS)[number])
+    ? (sortByRaw as (typeof SORT_FIELDS)[number])
+    : 'createdAt';
+  const sortOrder = queryString(query, 'sortOrder') === 'asc' ? 'asc' : 'desc';
+
+  const createdAt =
+    fromDate && toDate ? [fromDate, toDate] : fromDate ? [fromDate] : null;
+
+  return {
+    filterModel: {
+      search,
+      status,
+      responsibleId,
+      createdAt,
+      amount,
+    } satisfies FilterValues,
+    params: {
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      search: search || undefined,
+      status: status ?? undefined,
+      responsibleId: responsibleId ?? undefined,
+      createdFrom: createdFrom,
+      createdTo: createdTo,
+      amount: amount ?? undefined,
+    } satisfies OrdersListParams,
+  };
+}
+
+const initial = readInitial();
+const filterModel = ref<FilterValues>({ ...initial.filterModel });
+const params = ref<OrdersListParams>({ ...initial.params });
 
 const filterFields = computed<FilterField[]>(() => [
   {
     key: 'status',
     type: 'select',
     label: t('orders.fields.status'),
-    options: (
-      ['new', 'inProduction', 'ready', 'completed', 'cancelled'] as OrderStatus[]
-    ).map((s) => ({ label: t(`orders.status.${s}`), value: s })),
+    options: STATUSES.map((s) => ({ label: t(`orders.status.${s}`), value: s })),
   },
   {
     key: 'responsibleId',
@@ -69,25 +111,14 @@ const filterFields = computed<FilterField[]>(() => [
   },
 ]);
 
-function toDateParam(value: unknown): string | undefined {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    const y = value.getFullYear();
-    const m = String(value.getMonth() + 1).padStart(2, '0');
-    const d = String(value.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }
-  if (typeof value === 'string' && value.trim()) return value.slice(0, 10);
-  return undefined;
-}
-
 function toOptionalNumber(value: unknown): number | undefined {
   return typeof value === 'number' && !Number.isNaN(value) ? value : undefined;
 }
 
 function applyFilters(values: FilterValues) {
   const range = Array.isArray(values.createdAt) ? (values.createdAt as unknown[]) : [];
-  const from = toDateParam(range[0]);
-  const to = toDateParam(range[1] ?? range[0]);
+  const from = toQueryDate(range[0]);
+  const to = toQueryDate(range[1] ?? range[0]);
 
   params.value = {
     ...params.value,
@@ -101,6 +132,22 @@ function applyFilters(values: FilterValues) {
     amount: toOptionalNumber(values.amount),
   };
 }
+
+useRegistryQuery(
+  () => ({
+    search: params.value.search,
+    status: params.value.status,
+    responsibleId: params.value.responsibleId,
+    createdFrom: params.value.createdFrom,
+    createdTo: params.value.createdTo,
+    amount: params.value.amount != null ? String(params.value.amount) : undefined,
+    page: params.value.page !== 1 ? String(params.value.page) : undefined,
+    limit: params.value.limit !== 25 ? String(params.value.limit) : undefined,
+    sortBy: params.value.sortBy !== 'createdAt' ? params.value.sortBy : undefined,
+    sortOrder: params.value.sortOrder !== 'desc' ? params.value.sortOrder : undefined,
+  }),
+  [params],
+);
 
 const { data, isLoading, isError, isFetching } = useOrdersList(params);
 const total = computed(() => data.value?.meta.total ?? 0);

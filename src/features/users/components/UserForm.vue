@@ -9,6 +9,7 @@ import DatePicker from 'primevue/datepicker';
 import Message from 'primevue/message';
 import PhoneInput from '@/shared/ui/PhoneInput.vue';
 import { normalizeOptionalPhone, formatUaPhone } from '@/shared/lib/phone';
+import { isValidLogin, normalizeLogin } from '@/shared/lib/login';
 import type { CreateUserPayload, UpdateUserPayload, UserRecord } from '../types';
 import { fromPickerDate, toPickerDate } from '../lib/helpers';
 
@@ -38,6 +39,10 @@ const form = reactive({
   isActive: true,
 });
 
+const fieldErrors = reactive({
+  email: '',
+});
+
 function hydrate(user?: UserRecord | null) {
   form.lastName = user?.lastName ?? '';
   form.firstName = user?.firstName ?? '';
@@ -48,6 +53,7 @@ function hydrate(user?: UserRecord | null) {
   form.birthDate = toPickerDate(user?.birthDate);
   form.hireDate = toPickerDate(user?.hireDate);
   form.isActive = user?.isActive ?? true;
+  fieldErrors.email = '';
 }
 
 hydrate(props.initial);
@@ -57,8 +63,15 @@ watch(
 );
 
 function onSubmit() {
+  const login = normalizeLogin(form.email);
+  if (!isValidLogin(login)) {
+    fieldErrors.email = t('validation.login');
+    return;
+  }
+  fieldErrors.email = '';
+
   const base = {
-    email: form.email.trim(),
+    email: login,
     firstName: form.firstName.trim(),
     lastName: form.lastName.trim(),
     middleName: form.middleName.trim() || null,
@@ -98,7 +111,21 @@ function onSubmit() {
 
     <div class="grid grid-cols-1 items-center gap-1 px-5 py-3.5 sm:grid-cols-[minmax(10rem,15rem)_minmax(0,1fr)] sm:gap-6">
       <label class="text-sm text-slate-500" for="email">{{ t('users.fields.email') }} *</label>
-      <InputText id="email" v-model="form.email" type="email" required class="w-full" />
+      <div>
+        <InputText
+          id="email"
+          v-model="form.email"
+          type="text"
+          autocomplete="username"
+          required
+          maxlength="254"
+          class="w-full"
+          :placeholder="t('users.loginPlaceholder')"
+          @blur="form.email = form.email.trim().toLowerCase()"
+        />
+        <small v-if="fieldErrors.email" class="text-red-600">{{ fieldErrors.email }}</small>
+        <p class="mt-1 text-xs text-slate-500">{{ t('users.loginHint') }}</p>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 items-center gap-1 px-5 py-3.5 sm:grid-cols-[minmax(10rem,15rem)_minmax(0,1fr)] sm:gap-6">

@@ -12,6 +12,12 @@ import PageHeader from '@/shared/ui/PageHeader.vue';
 import StateSection from '@/shared/ui/StateSection.vue';
 import FilterBar from '@/shared/ui/filter/FilterBar.vue';
 import type { FilterField, FilterValues } from '@/shared/ui/filter/types';
+import {
+  queryBoolean,
+  queryNumber,
+  queryString,
+  useRegistryQuery,
+} from '@/shared/composables/useRegistryQuery';
 import { usePermissions } from '@/shared/permissions/usePermissions';
 import { PERMISSIONS } from '@/config/permissions';
 import { resolveErrorMessage } from '@/shared/errors/errors';
@@ -34,13 +40,33 @@ const { data: roles } = useQuery({
   queryFn: () => usersApi.listRoles(),
 });
 
-const filterModel = ref<FilterValues>({
-  search: '',
-  isActive: null,
-  roleId: null,
-});
+function readInitial() {
+  const query = router.currentRoute.value.query;
+  const search = queryString(query, 'search') ?? '';
+  const isActive = queryBoolean(query, 'isActive') ?? null;
+  const roleId = queryString(query, 'roleId') ?? null;
+  const page = queryNumber(query, 'page') ?? 1;
+  const limit = queryNumber(query, 'limit') ?? 25;
 
-const params = ref<UsersListParams>({ page: 1, limit: 25 });
+  return {
+    filterModel: {
+      search,
+      isActive,
+      roleId,
+    } satisfies FilterValues,
+    params: {
+      page,
+      limit,
+      search: search || undefined,
+      isActive: typeof isActive === 'boolean' ? isActive : undefined,
+      roleId: roleId ?? undefined,
+    } satisfies UsersListParams,
+  };
+}
+
+const initial = readInitial();
+const filterModel = ref<FilterValues>({ ...initial.filterModel });
+const params = ref<UsersListParams>({ ...initial.params });
 
 const filterFields = computed<FilterField[]>(() => [
   {
@@ -71,6 +97,18 @@ function applyFilters(values: FilterValues) {
     roleId: typeof values.roleId === 'string' ? values.roleId : undefined,
   };
 }
+
+useRegistryQuery(
+  () => ({
+    search: params.value.search,
+    roleId: params.value.roleId,
+    isActive:
+      params.value.isActive === undefined ? undefined : String(params.value.isActive),
+    page: params.value.page !== 1 ? String(params.value.page) : undefined,
+    limit: params.value.limit !== 25 ? String(params.value.limit) : undefined,
+  }),
+  [params],
+);
 
 const { data, isLoading, isError, isFetching } = useUsersList(params);
 const total = computed(() => data.value?.meta.total ?? 0);

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
@@ -120,7 +120,16 @@ function onCancelOrder() {
     <StateSection :loading="isLoading" :error="isError ? t('orders.loadOneError') : null">
       <div v-if="order" class="flex flex-col gap-6">
         <DetailCard :title="t('common.basicInfo')">
-          <DetailRow :label="t('orders.fields.customer')" :value="order.customerName" />
+          <DetailRow :label="t('orders.fields.customer')">
+            <RouterLink
+              v-if="order.customerId && can(PERMISSIONS.CUSTOMERS_VIEW)"
+              :to="{ name: 'customers-detail', params: { id: order.customerId } }"
+              class="text-emerald-700 underline-offset-2 hover:underline"
+            >
+              {{ order.customerName }}
+            </RouterLink>
+            <template v-else>{{ order.customerName || t('common.empty') }}</template>
+          </DetailRow>
           <DetailRow
             :label="t('orders.fields.city')"
             :value="order.city"

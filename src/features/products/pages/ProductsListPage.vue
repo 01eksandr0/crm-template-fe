@@ -11,6 +11,11 @@ import PageHeader from '@/shared/ui/PageHeader.vue';
 import StateSection from '@/shared/ui/StateSection.vue';
 import FilterBar from '@/shared/ui/filter/FilterBar.vue';
 import type { FilterField, FilterValues } from '@/shared/ui/filter/types';
+import {
+  queryNumber,
+  queryString,
+  useRegistryQuery,
+} from '@/shared/composables/useRegistryQuery';
 import { usePermissions } from '@/shared/permissions/usePermissions';
 import { PERMISSIONS } from '@/config/permissions';
 import { resolveErrorMessage } from '@/shared/errors/errors';
@@ -26,16 +31,34 @@ const confirm = useConfirm();
 const { can } = usePermissions();
 const remove = useDeleteProduct();
 
-const filterModel = ref<FilterValues>({
-  search: '',
-});
+const SORT_FIELDS = ['number', 'name', 'price'] as const;
 
-const params = ref<ProductsListParams>({
-  page: 1,
-  limit: 25,
-  sortBy: 'name',
-  sortOrder: 'asc',
-});
+function readInitial() {
+  const query = router.currentRoute.value.query;
+  const search = queryString(query, 'search') ?? '';
+  const page = queryNumber(query, 'page') ?? 1;
+  const limit = queryNumber(query, 'limit') ?? 25;
+  const sortByRaw = queryString(query, 'sortBy');
+  const sortBy = SORT_FIELDS.includes(sortByRaw as (typeof SORT_FIELDS)[number])
+    ? (sortByRaw as (typeof SORT_FIELDS)[number])
+    : 'name';
+  const sortOrder = queryString(query, 'sortOrder') === 'desc' ? 'desc' : 'asc';
+
+  return {
+    filterModel: { search } satisfies FilterValues,
+    params: {
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      search: search || undefined,
+    } satisfies ProductsListParams,
+  };
+}
+
+const initial = readInitial();
+const filterModel = ref<FilterValues>({ ...initial.filterModel });
+const params = ref<ProductsListParams>({ ...initial.params });
 
 const filterFields = computed<FilterField[]>(() => []);
 
@@ -46,6 +69,17 @@ function applyFilters(values: FilterValues) {
     search: String(values.search ?? '').trim() || undefined,
   };
 }
+
+useRegistryQuery(
+  () => ({
+    search: params.value.search,
+    page: params.value.page !== 1 ? String(params.value.page) : undefined,
+    limit: params.value.limit !== 25 ? String(params.value.limit) : undefined,
+    sortBy: params.value.sortBy !== 'name' ? params.value.sortBy : undefined,
+    sortOrder: params.value.sortOrder !== 'asc' ? params.value.sortOrder : undefined,
+  }),
+  [params],
+);
 
 const { data, isLoading, isError, isFetching } = useProductsList(params);
 const total = computed(() => data.value?.meta.total ?? 0);
