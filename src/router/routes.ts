@@ -15,6 +15,10 @@ export const routes: RouteRecordRaw[] = [
     children: [
       {
         path: '',
+        redirect: { name: 'dashboard' },
+      },
+      {
+        path: 'dashboard',
         name: 'dashboard',
         component: () => import('@/features/dashboard/pages/DashboardPage.vue'),
         meta: { permission: PERMISSIONS.DASHBOARD_VIEW, titleKey: 'nav.dashboard' },

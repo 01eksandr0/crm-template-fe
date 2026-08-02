@@ -12,6 +12,6 @@ const { t } = useI18n();
     <i class="pi pi-lock text-5xl text-slate-400" />
     <h1 class="text-3xl font-semibold text-slate-800">{{ t('errorPages.forbiddenTitle') }}</h1>
     <p class="text-slate-500">{{ t('errorPages.forbidden') }}</p>
-    <Button :label="t('common.goHome')" icon="pi pi-home" @click="router.push('/')" />
+    <Button :label="t('common.goHome')" icon="pi pi-home" @click="router.push({ name: 'dashboard' })" />
   </div>
 </template>

@@ -6,6 +6,8 @@ import InputText from 'primevue/inputtext';
 import Select from 'primevue/select';
 import Button from 'primevue/button';
 import Message from 'primevue/message';
+import PhoneInput from '@/shared/ui/PhoneInput.vue';
+import { hasPhoneDigits, formatUaPhone } from '@/shared/lib/phone';
 import { dictionariesApi } from '@/features/orders/api/dictionariesApi';
 import type { Customer, CustomerPayload } from '../types';
 
@@ -51,7 +53,7 @@ function hydrate(customer?: Customer | null) {
   form.lastName = customer?.lastName ?? '';
   form.firstName = customer?.firstName ?? '';
   form.middleName = customer?.middleName ?? '';
-  form.phone = customer?.phone ?? '';
+  form.phone = formatUaPhone(customer?.phone);
   form.city = customer?.city ?? '';
   form.deliveryMethodId = customer?.deliveryMethodId ?? null;
   form.deliveryPostOffice = customer?.deliveryPostOffice ?? '';
@@ -95,7 +97,7 @@ function validate() {
   let ok = true;
   if (!requireText(form.lastName, 'lastName')) ok = false;
   if (!requireText(form.firstName, 'firstName')) ok = false;
-  if (!form.phone.trim()) {
+  if (!hasPhoneDigits(form.phone)) {
     fieldErrors.phone = t('validation.phone');
     ok = false;
   } else {
@@ -170,7 +172,7 @@ function onSubmit() {
     >
       <label class="text-sm text-slate-500">{{ t('customers.fields.phone') }} *</label>
       <div>
-        <InputText v-model="form.phone" class="w-full" :disabled="submitting" maxlength="20" />
+        <PhoneInput v-model="form.phone" :disabled="submitting" :invalid="!!fieldErrors.phone" />
         <small v-if="fieldErrors.phone" class="text-red-600">{{ fieldErrors.phone }}</small>
       </div>
     </div>

@@ -7,6 +7,8 @@ import Button from 'primevue/button';
 import ToggleSwitch from 'primevue/toggleswitch';
 import DatePicker from 'primevue/datepicker';
 import Message from 'primevue/message';
+import PhoneInput from '@/shared/ui/PhoneInput.vue';
+import { normalizeOptionalPhone, formatUaPhone } from '@/shared/lib/phone';
 import type { CreateUserPayload, UpdateUserPayload, UserRecord } from '../types';
 import { fromPickerDate, toPickerDate } from '../lib/helpers';
 
@@ -41,7 +43,7 @@ function hydrate(user?: UserRecord | null) {
   form.firstName = user?.firstName ?? '';
   form.middleName = user?.middleName ?? '';
   form.email = user?.email ?? '';
-  form.phone = user?.phone ?? '';
+  form.phone = formatUaPhone(user?.phone);
   form.password = '';
   form.birthDate = toPickerDate(user?.birthDate);
   form.hireDate = toPickerDate(user?.hireDate);
@@ -60,7 +62,7 @@ function onSubmit() {
     firstName: form.firstName.trim(),
     lastName: form.lastName.trim(),
     middleName: form.middleName.trim() || null,
-    phone: form.phone.trim() || null,
+    phone: normalizeOptionalPhone(form.phone),
     birthDate: fromPickerDate(form.birthDate),
     hireDate: fromPickerDate(form.hireDate),
     isActive: form.isActive,
@@ -101,7 +103,7 @@ function onSubmit() {
 
     <div class="grid grid-cols-1 items-center gap-1 px-5 py-3.5 sm:grid-cols-[minmax(10rem,15rem)_minmax(0,1fr)] sm:gap-6">
       <label class="text-sm text-slate-500" for="phone">{{ t('users.fields.phone') }}</label>
-      <InputText id="phone" v-model="form.phone" class="w-full" placeholder="+380..." />
+      <PhoneInput id="phone" v-model="form.phone" />
     </div>
 
     <div class="grid grid-cols-1 items-center gap-1 px-5 py-3.5 sm:grid-cols-[minmax(10rem,15rem)_minmax(0,1fr)] sm:gap-6">

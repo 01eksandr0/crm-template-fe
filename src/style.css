@@ -19,4 +19,62 @@ body {
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   background: var(--p-surface-50, #f8fafc);
   color: var(--p-surface-800, #1e293b);
+  /* `auto` над текстом дає I-beam — фіксуємо стрілку глобально (успадковується) */
+  cursor: default;
+}
+
+/* Поля вводу — текстовий курсор */
+input:not([type='button']):not([type='submit']):not([type='reset']):not([type='checkbox']):not([type='radio']):not([type='file']),
+textarea,
+[contenteditable='true'] {
+  cursor: text;
+}
+
+/* Клікабельне + опції селектів/меню */
+a,
+button,
+[role='button'],
+[role='option'],
+[role='menuitem'],
+[role='tab'],
+.p-button,
+.p-select,
+.p-select-option,
+.p-select-list,
+.p-multiselect,
+.p-multiselect-option,
+.p-dropdown,
+.p-dropdown-item,
+.p-menu-item,
+.p-contextmenu,
+.p-datepicker-day,
+.p-paginator-page,
+.p-datatable .p-datatable-tbody > tr,
+input[type='button'],
+input[type='submit'],
+input[type='reset'],
+input[type='checkbox'],
+input[type='radio'],
+input[type='file'],
+select,
+summary,
+label[for] {
+  cursor: pointer;
+}
+
+/* Текст/іконки всередині клікабельного */
+a *,
+button *,
+[role='button'] *,
+[role='option'] *,
+[role='menuitem'] *,
+.p-button *,
+.p-select *,
+.p-select-option *,
+.p-multiselect-option *,
+.p-dropdown-item *,
+.p-menu-item *,
+label[for] *,
+summary * {
+  cursor: inherit;
 }

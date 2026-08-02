@@ -9,6 +9,8 @@ import PageHeader from '@/shared/ui/PageHeader.vue';
 import StateSection from '@/shared/ui/StateSection.vue';
 import DetailCard from '@/shared/ui/DetailCard.vue';
 import DetailRow from '@/shared/ui/DetailRow.vue';
+import PhoneInput from '@/shared/ui/PhoneInput.vue';
+import { hasPhoneDigits, normalizeOptionalPhone, formatUaPhone } from '@/shared/lib/phone';
 import { useBreadcrumbs } from '@/shared/breadcrumbs/useBreadcrumbs';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { resolveErrorMessage } from '@/shared/errors/errors';
@@ -40,7 +42,7 @@ const formError = ref('');
 function hydrate() {
   form.firstName = profile.value?.firstName ?? '';
   form.lastName = profile.value?.lastName ?? '';
-  form.phone = profile.value?.phone ?? '';
+  form.phone = formatUaPhone(profile.value?.phone);
   fieldErrors.firstName = '';
   fieldErrors.lastName = '';
   fieldErrors.phone = '';
@@ -74,11 +76,16 @@ function validateField(field: 'firstName' | 'lastName' | 'phone') {
   }
 
   const phone = form.phone.trim();
-  if (!phone) {
+  if (!phone || !hasPhoneDigits(phone)) {
+    // optional: порожнє ок, частково заповнене — помилка
+    if (phone && !hasPhoneDigits(phone)) {
+      fieldErrors.phone = t('validation.phone');
+      return false;
+    }
     fieldErrors.phone = '';
     return true;
   }
-  if (phone.length < 6 || phone.length > 20 || !/^[0-9\s()+-]+$/.test(phone)) {
+  if (phone.length > 32 || !/^[0-9\s()+-]+$/.test(phone)) {
     fieldErrors.phone = t('validation.phone');
     return false;
   }
@@ -101,7 +108,7 @@ async function onSave() {
     const updated = await update.mutateAsync({
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
-      phone: form.phone.trim() || null,
+      phone: normalizeOptionalPhone(form.phone),
     });
     if (auth.user) {
       auth.user = {
@@ -175,12 +182,11 @@ function onCancel() {
                 {{ t('profile.fields.phone') }}
               </label>
               <div>
-                <InputText
+                <PhoneInput
                   id="phone"
                   v-model="form.phone"
-                  class="w-full"
                   :disabled="update.isPending.value"
-                  placeholder="+380..."
+                  :invalid="!!fieldErrors.phone"
                   @blur="validateField('phone')"
                 />
                 <small v-if="fieldErrors.phone" class="text-red-600">{{ fieldErrors.phone }}</small>

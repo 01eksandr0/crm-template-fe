@@ -31,7 +31,7 @@ async function onSubmit() {
       password: password.value,
       rememberMe: rememberMe.value,
     });
-    const redirect = (route.query.redirect as string) || '/';
+    const redirect = (route.query.redirect as string) || '/dashboard';
     toast.add({ severity: 'success', summary: t('auth.loginSuccess'), life: 2000 });
     router.push(redirect);
   } catch (e) {

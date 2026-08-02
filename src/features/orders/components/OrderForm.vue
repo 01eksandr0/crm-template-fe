@@ -9,6 +9,8 @@ import Select from 'primevue/select';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import Message from 'primevue/message';
+import PhoneInput from '@/shared/ui/PhoneInput.vue';
+import { hasPhoneDigits, formatUaPhone } from '@/shared/lib/phone';
 import { useFormat } from '@/shared/composables/useFormat';
 import { productsApi } from '@/features/products/api/productsApi';
 import { customersApi } from '../api/customersApi';
@@ -223,7 +225,7 @@ function openCreateCustomer() {
   customerForm.lastName = '';
   customerForm.firstName = '';
   customerForm.middleName = '';
-  customerForm.phone = customerSearch.value.replace(/[^\d+\s()-]/g, '') || '';
+  customerForm.phone = formatUaPhone(customerSearch.value.replace(/[^\d+]/g, '') || '');
   customerForm.city = '';
   customerForm.deliveryMethodId = null;
   customerForm.deliveryPostOffice = '';
@@ -250,7 +252,7 @@ async function saveCustomer() {
     customerFormError.value = t('validation.required');
     return;
   }
-  if (!customerForm.phone.trim()) {
+  if (!hasPhoneDigits(customerForm.phone)) {
     customerFormError.value = t('validation.phone');
     return;
   }
@@ -662,7 +664,7 @@ function onSubmit() {
         <InputText v-model="customerForm.lastName" :placeholder="t('orders.customerFields.lastName') + ' *'" />
         <InputText v-model="customerForm.firstName" :placeholder="t('orders.customerFields.firstName') + ' *'" />
         <InputText v-model="customerForm.middleName" :placeholder="t('orders.customerFields.middleName')" />
-        <InputText v-model="customerForm.phone" :placeholder="t('orders.customerFields.phone') + ' *'" />
+        <PhoneInput v-model="customerForm.phone" />
         <InputText v-model="customerForm.city" :placeholder="t('orders.customerFields.city') + ' *'" />
         <Select
           v-model="customerForm.deliveryMethodId"
