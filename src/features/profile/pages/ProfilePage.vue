@@ -10,7 +10,7 @@ import StateSection from '@/shared/ui/StateSection.vue';
 import DetailCard from '@/shared/ui/DetailCard.vue';
 import DetailRow from '@/shared/ui/DetailRow.vue';
 import PhoneInput from '@/shared/ui/PhoneInput.vue';
-import { hasPhoneDigits, normalizeOptionalPhone, formatUaPhone } from '@/shared/lib/phone';
+import { phoneValidationError, normalizeOptionalPhone, formatUaPhone } from '@/shared/lib/phone';
 import { useBreadcrumbs } from '@/shared/breadcrumbs/useBreadcrumbs';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { resolveErrorMessage } from '@/shared/errors/errors';
@@ -75,18 +75,9 @@ function validateField(field: 'firstName' | 'lastName' | 'phone') {
     return true;
   }
 
-  const phone = form.phone.trim();
-  if (!phone || !hasPhoneDigits(phone)) {
-    // optional: порожнє ок, частково заповнене — помилка
-    if (phone && !hasPhoneDigits(phone)) {
-      fieldErrors.phone = t('validation.phone');
-      return false;
-    }
-    fieldErrors.phone = '';
-    return true;
-  }
-  if (phone.length > 32 || !/^[0-9\s()+-]+$/.test(phone)) {
-    fieldErrors.phone = t('validation.phone');
+  const err = phoneValidationError(form.phone, false);
+  if (err) {
+    fieldErrors.phone = t(`validation.${err}`);
     return false;
   }
   fieldErrors.phone = '';
@@ -140,7 +131,7 @@ function onCancel() {
         </DetailCard>
 
         <DetailCard :title="t('profile.personal')">
-          <form class="divide-y divide-slate-100" @submit.prevent="onSave">
+          <form class="divide-y divide-slate-100" novalidate @submit.prevent="onSave">
             <div class="grid grid-cols-1 items-center gap-1 px-5 py-3.5 sm:grid-cols-[minmax(10rem,15rem)_minmax(0,1fr)] sm:gap-6">
               <label class="text-sm text-slate-500" for="firstName">
                 {{ t('profile.fields.firstName') }} *
@@ -151,6 +142,7 @@ function onCancel() {
                   v-model="form.firstName"
                   class="w-full"
                   :disabled="update.isPending.value"
+                  :invalid="!!fieldErrors.firstName"
                   @blur="validateField('firstName')"
                 />
                 <small v-if="fieldErrors.firstName" class="text-red-600">
@@ -169,6 +161,7 @@ function onCancel() {
                   v-model="form.lastName"
                   class="w-full"
                   :disabled="update.isPending.value"
+                  :invalid="!!fieldErrors.lastName"
                   @blur="validateField('lastName')"
                 />
                 <small v-if="fieldErrors.lastName" class="text-red-600">

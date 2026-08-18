@@ -1,28 +1,36 @@
 <script setup lang="ts">
-import InputMask from 'primevue/inputmask';
+import { formatUaMask, subscriberDigits } from '@/shared/lib/phone';
 
 defineProps<{
   id?: string;
   disabled?: boolean;
   invalid?: boolean;
-  required?: boolean;
 }>();
 
-/** Формат UA: +380 (XX) XXX-XX-XX */
+const emit = defineEmits<{
+  blur: [event: FocusEvent];
+}>();
+
 const model = defineModel<string>({ default: '' });
+
+function onInput() {
+  const digits = subscriberDigits(model.value);
+  model.value = digits ? formatUaMask(digits) : '';
+}
 </script>
 
 <template>
-  <InputMask
+  <input
     :id="id"
     v-model="model"
-    mask="+380 (99) 999-99-99"
-    placeholder="+380 (__) ___-__-__"
-    :auto-clear="false"
-    slot-char="_"
+    type="text"
+    inputmode="numeric"
+    autocomplete="tel"
+    class="p-inputtext p-component w-full"
+    :class="{ 'p-invalid': invalid }"
+    placeholder="+380 (XX) XXX-XX-XX"
     :disabled="disabled"
-    :invalid="invalid"
-    :required="required"
-    class="w-full"
+    @input="onInput"
+    @blur="emit('blur', $event)"
   />
 </template>

@@ -79,7 +79,7 @@ function onSubmit() {
 </script>
 
 <template>
-  <form class="divide-y divide-slate-100" @submit.prevent="onSubmit">
+  <form class="divide-y divide-slate-100" novalidate @submit.prevent="onSubmit">
     <div class="grid grid-cols-1 items-center gap-1 px-5 py-3.5 sm:grid-cols-[minmax(10rem,15rem)_minmax(0,1fr)] sm:gap-6">
       <label class="text-sm text-slate-500" for="productName">
         {{ t('products.fields.name') }} *
@@ -91,6 +91,7 @@ function onSubmit() {
           class="w-full"
           :disabled="submitting"
           maxlength="100"
+          :invalid="!!fieldErrors.name"
         />
         <small v-if="fieldErrors.name" class="text-red-600">{{ fieldErrors.name }}</small>
       </div>
@@ -111,6 +112,7 @@ function onSubmit() {
           :max-fraction-digits="2"
           :min="0"
           :disabled="submitting"
+          :invalid="!!fieldErrors.price"
         />
         <small v-if="fieldErrors.price" class="text-red-600">{{ fieldErrors.price }}</small>
       </div>

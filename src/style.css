@@ -78,3 +78,14 @@ label[for] *,
 summary * {
   cursor: inherit;
 }
+
+/* Червона рамка невалідних полів після сабміту */
+.p-inputtext.p-invalid,
+.p-select.p-invalid,
+.p-password.p-invalid .p-inputtext,
+.p-datepicker.p-invalid .p-inputtext,
+.p-inputmask.p-invalid,
+.p-inputnumber.p-invalid .p-inputtext,
+.p-textarea.p-invalid {
+  border-color: var(--p-red-500, #ef4444);
+}

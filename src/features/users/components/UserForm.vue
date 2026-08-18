@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue';
+import { reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import InputText from 'primevue/inputtext';
 import Password from 'primevue/password';
@@ -7,8 +7,7 @@ import Button from 'primevue/button';
 import ToggleSwitch from 'primevue/toggleswitch';
 import DatePicker from 'primevue/datepicker';
 import Message from 'primevue/message';
-import PhoneInput from '@/shared/ui/PhoneInput.vue';
-import { normalizeOptionalPhone, formatUaPhone } from '@/shared/lib/phone';
+import { normalizeOptionalPhone, formatUaPhone, formatUaMask, phoneValidationError, subscriberDigits } from '@/shared/lib/phone';
 import { isValidLogin, normalizeLogin } from '@/shared/lib/login';
 import type { CreateUserPayload, UpdateUserPayload, UserRecord } from '../types';
 import { fromPickerDate, toPickerDate } from '../lib/helpers';
@@ -26,6 +25,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const phoneRef = ref<HTMLInputElement | null>(null);
 
 const form = reactive({
   lastName: '',
@@ -40,7 +40,11 @@ const form = reactive({
 });
 
 const fieldErrors = reactive({
+  lastName: '',
+  firstName: '',
   email: '',
+  password: '',
+  phone: '',
 });
 
 function hydrate(user?: UserRecord | null) {
@@ -53,7 +57,11 @@ function hydrate(user?: UserRecord | null) {
   form.birthDate = toPickerDate(user?.birthDate);
   form.hireDate = toPickerDate(user?.hireDate);
   form.isActive = user?.isActive ?? true;
+  fieldErrors.lastName = '';
+  fieldErrors.firstName = '';
   fieldErrors.email = '';
+  fieldErrors.password = '';
+  fieldErrors.phone = '';
 }
 
 hydrate(props.initial);
@@ -62,13 +70,48 @@ watch(
   (value) => hydrate(value),
 );
 
+function applyPhoneError(value = form.phone) {
+  const err = phoneValidationError(value, false);
+  fieldErrors.phone = err ? t(`validation.${err}`) : '';
+  return !err;
+}
+
+function onPhoneInput() {
+  const digits = subscriberDigits(form.phone);
+  form.phone = digits ? formatUaMask(digits) : '';
+  applyPhoneError(form.phone);
+}
+
 function onSubmit() {
+  if (phoneRef.value) form.phone = phoneRef.value.value;
+  let ok = true;
+  if (!applyPhoneError(form.phone)) ok = false;
+
+  if (!form.lastName.trim()) {
+    fieldErrors.lastName = t('validation.required');
+    ok = false;
+  } else fieldErrors.lastName = '';
+
+  if (!form.firstName.trim()) {
+    fieldErrors.firstName = t('validation.required');
+    ok = false;
+  } else fieldErrors.firstName = '';
+
   const login = normalizeLogin(form.email);
   if (!isValidLogin(login)) {
     fieldErrors.email = t('validation.login');
-    return;
-  }
-  fieldErrors.email = '';
+    ok = false;
+  } else fieldErrors.email = '';
+
+  if (props.mode === 'create' && !form.password.trim()) {
+    fieldErrors.password = t('validation.required');
+    ok = false;
+  } else if (form.password.trim() && form.password.trim().length < 8) {
+    fieldErrors.password = t('validation.passwordMin');
+    ok = false;
+  } else fieldErrors.password = '';
+
+  if (!ok) return;
 
   const base = {
     email: login,
@@ -93,15 +136,31 @@ function onSubmit() {
 </script>
 
 <template>
-  <form class="divide-y divide-slate-100" @submit.prevent="onSubmit">
+  <form class="divide-y divide-slate-100" novalidate @submit.prevent="onSubmit">
     <div class="grid grid-cols-1 items-center gap-1 px-5 py-3.5 sm:grid-cols-[minmax(10rem,15rem)_minmax(0,1fr)] sm:gap-6">
       <label class="text-sm text-slate-500" for="lastName">{{ t('users.fields.lastName') }} *</label>
-      <InputText id="lastName" v-model="form.lastName" required class="w-full" />
+      <div>
+        <InputText
+          id="lastName"
+          v-model="form.lastName"
+          class="w-full"
+          :invalid="!!fieldErrors.lastName"
+        />
+        <small v-if="fieldErrors.lastName" class="text-red-600">{{ fieldErrors.lastName }}</small>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 items-center gap-1 px-5 py-3.5 sm:grid-cols-[minmax(10rem,15rem)_minmax(0,1fr)] sm:gap-6">
       <label class="text-sm text-slate-500" for="firstName">{{ t('users.fields.firstName') }} *</label>
-      <InputText id="firstName" v-model="form.firstName" required class="w-full" />
+      <div>
+        <InputText
+          id="firstName"
+          v-model="form.firstName"
+          class="w-full"
+          :invalid="!!fieldErrors.firstName"
+        />
+        <small v-if="fieldErrors.firstName" class="text-red-600">{{ fieldErrors.firstName }}</small>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 items-center gap-1 px-5 py-3.5 sm:grid-cols-[minmax(10rem,15rem)_minmax(0,1fr)] sm:gap-6">
@@ -117,10 +176,10 @@ function onSubmit() {
           v-model="form.email"
           type="text"
           autocomplete="username"
-          required
           maxlength="254"
           class="w-full"
           :placeholder="t('users.loginPlaceholder')"
+          :invalid="!!fieldErrors.email"
           @blur="form.email = form.email.trim().toLowerCase()"
         />
         <small v-if="fieldErrors.email" class="text-red-600">{{ fieldErrors.email }}</small>
@@ -130,7 +189,22 @@ function onSubmit() {
 
     <div class="grid grid-cols-1 items-center gap-1 px-5 py-3.5 sm:grid-cols-[minmax(10rem,15rem)_minmax(0,1fr)] sm:gap-6">
       <label class="text-sm text-slate-500" for="phone">{{ t('users.fields.phone') }}</label>
-      <PhoneInput id="phone" v-model="form.phone" />
+      <div>
+        <input
+          id="phone"
+          ref="phoneRef"
+          v-model="form.phone"
+          type="text"
+          inputmode="numeric"
+          autocomplete="tel"
+          name="userPhone"
+          class="p-inputtext p-component w-full"
+          :class="{ 'p-invalid': !!fieldErrors.phone }"
+          placeholder="+380 (XX) XXX-XX-XX"
+          @input="onPhoneInput"
+        />
+        <small v-if="fieldErrors.phone" class="text-red-600">{{ fieldErrors.phone }}</small>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 items-center gap-1 px-5 py-3.5 sm:grid-cols-[minmax(10rem,15rem)_minmax(0,1fr)] sm:gap-6">
@@ -146,9 +220,10 @@ function onSubmit() {
           toggle-mask
           fluid
           input-class="w-full"
-          :required="mode === 'create'"
+          :invalid="!!fieldErrors.password"
           autocomplete="new-password"
         />
+        <small v-if="fieldErrors.password" class="text-red-600">{{ fieldErrors.password }}</small>
         <p v-if="mode === 'edit'" class="mt-1 text-xs text-slate-500">{{ t('users.passwordHint') }}</p>
       </div>
     </div>

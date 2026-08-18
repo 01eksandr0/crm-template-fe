@@ -7,7 +7,7 @@ import Select from 'primevue/select';
 import Button from 'primevue/button';
 import Message from 'primevue/message';
 import PhoneInput from '@/shared/ui/PhoneInput.vue';
-import { hasPhoneDigits, formatUaPhone } from '@/shared/lib/phone';
+import { phoneValidationError, formatUaPhone } from '@/shared/lib/phone';
 import { dictionariesApi } from '@/features/orders/api/dictionariesApi';
 import type { Customer, CustomerPayload } from '../types';
 
@@ -97,8 +97,9 @@ function validate() {
   let ok = true;
   if (!requireText(form.lastName, 'lastName')) ok = false;
   if (!requireText(form.firstName, 'firstName')) ok = false;
-  if (!hasPhoneDigits(form.phone)) {
-    fieldErrors.phone = t('validation.phone');
+  const phoneErr = phoneValidationError(form.phone, true);
+  if (phoneErr) {
+    fieldErrors.phone = t(`validation.${phoneErr}`);
     ok = false;
   } else {
     fieldErrors.phone = '';
@@ -139,13 +140,19 @@ function onSubmit() {
 </script>
 
 <template>
-  <form class="divide-y divide-slate-100" @submit.prevent="onSubmit">
+  <form class="divide-y divide-slate-100" novalidate @submit.prevent="onSubmit">
     <div
       class="grid grid-cols-1 items-center gap-1 px-5 py-3.5 sm:grid-cols-[minmax(10rem,15rem)_minmax(0,1fr)] sm:gap-6"
     >
       <label class="text-sm text-slate-500">{{ t('customers.fields.lastName') }} *</label>
       <div>
-        <InputText v-model="form.lastName" class="w-full" :disabled="submitting" maxlength="50" />
+        <InputText
+          v-model="form.lastName"
+          class="w-full"
+          :disabled="submitting"
+          maxlength="50"
+          :invalid="!!fieldErrors.lastName"
+        />
         <small v-if="fieldErrors.lastName" class="text-red-600">{{ fieldErrors.lastName }}</small>
       </div>
     </div>
@@ -155,7 +162,13 @@ function onSubmit() {
     >
       <label class="text-sm text-slate-500">{{ t('customers.fields.firstName') }} *</label>
       <div>
-        <InputText v-model="form.firstName" class="w-full" :disabled="submitting" maxlength="50" />
+        <InputText
+          v-model="form.firstName"
+          class="w-full"
+          :disabled="submitting"
+          maxlength="50"
+          :invalid="!!fieldErrors.firstName"
+        />
         <small v-if="fieldErrors.firstName" class="text-red-600">{{ fieldErrors.firstName }}</small>
       </div>
     </div>
@@ -182,7 +195,13 @@ function onSubmit() {
     >
       <label class="text-sm text-slate-500">{{ t('customers.fields.city') }} *</label>
       <div>
-        <InputText v-model="form.city" class="w-full" :disabled="submitting" maxlength="100" />
+        <InputText
+          v-model="form.city"
+          class="w-full"
+          :disabled="submitting"
+          maxlength="100"
+          :invalid="!!fieldErrors.city"
+        />
         <small v-if="fieldErrors.city" class="text-red-600">{{ fieldErrors.city }}</small>
       </div>
     </div>
@@ -214,6 +233,7 @@ function onSubmit() {
           v-model="form.deliveryPostOffice"
           class="w-full"
           :disabled="submitting"
+          :invalid="!!fieldErrors.deliveryExtra"
         />
         <small v-if="fieldErrors.deliveryExtra" class="text-red-600">
           {{ fieldErrors.deliveryExtra }}
@@ -227,7 +247,12 @@ function onSubmit() {
     >
       <label class="text-sm text-slate-500">{{ t('customers.fields.deliveryAddress') }} *</label>
       <div>
-        <InputText v-model="form.deliveryAddress" class="w-full" :disabled="submitting" />
+        <InputText
+          v-model="form.deliveryAddress"
+          class="w-full"
+          :disabled="submitting"
+          :invalid="!!fieldErrors.deliveryExtra"
+        />
         <small v-if="fieldErrors.deliveryExtra" class="text-red-600">
           {{ fieldErrors.deliveryExtra }}
         </small>

@@ -8,6 +8,7 @@ import Paginator from 'primevue/paginator';
 import PageHeader from '@/shared/ui/PageHeader.vue';
 import StateSection from '@/shared/ui/StateSection.vue';
 import FilterBar from '@/shared/ui/filter/FilterBar.vue';
+import { normalizeNumberRange, toNumberRangeTuple } from '@/shared/lib/numberRange';
 import type { FilterField, FilterValues } from '@/shared/ui/filter/types';
 import {
   fromQueryDate,
@@ -45,7 +46,10 @@ function readInitial() {
   const createdTo = queryString(query, 'createdTo');
   const fromDate = fromQueryDate(createdFrom);
   const toDate = fromQueryDate(createdTo);
-  const amount = queryNumber(query, 'amount') ?? null;
+  const { min: amountMin, max: amountMax } = normalizeNumberRange(
+    queryNumber(query, 'amountMin'),
+    queryNumber(query, 'amountMax'),
+  );
   const page = queryNumber(query, 'page') ?? 1;
   const limit = queryNumber(query, 'limit') ?? 25;
   const sortByRaw = queryString(query, 'sortBy');
@@ -56,6 +60,7 @@ function readInitial() {
 
   const createdAt =
     fromDate && toDate ? [fromDate, toDate] : fromDate ? [fromDate] : null;
+  const amount = toNumberRangeTuple([amountMin ?? null, amountMax ?? null]);
 
   return {
     filterModel: {
@@ -75,7 +80,8 @@ function readInitial() {
       responsibleId: responsibleId ?? undefined,
       createdFrom: createdFrom,
       createdTo: createdTo,
-      amount: amount ?? undefined,
+      amountMin,
+      amountMax,
     } satisfies OrdersListParams,
   };
 }
@@ -104,15 +110,16 @@ const filterFields = computed<FilterField[]>(() => [
   },
   {
     key: 'amount',
-    type: 'number',
+    type: 'numberRange',
     label: t('orders.filters.amount'),
     min: 0,
-    placeholder: '0',
   },
 ]);
 
-function toOptionalNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && !Number.isNaN(value) ? value : undefined;
+function amountRange(value: unknown): { amountMin?: number; amountMax?: number } {
+  const range = Array.isArray(value) ? value : [];
+  const { min, max } = normalizeNumberRange(range[0], range[1]);
+  return { amountMin: min, amountMax: max };
 }
 
 function applyFilters(values: FilterValues) {
@@ -129,7 +136,7 @@ function applyFilters(values: FilterValues) {
       typeof values.responsibleId === 'string' ? values.responsibleId : undefined,
     createdFrom: from,
     createdTo: to,
-    amount: toOptionalNumber(values.amount),
+    ...amountRange(values.amount),
   };
 }
 
@@ -140,7 +147,8 @@ useRegistryQuery(
     responsibleId: params.value.responsibleId,
     createdFrom: params.value.createdFrom,
     createdTo: params.value.createdTo,
-    amount: params.value.amount != null ? String(params.value.amount) : undefined,
+    amountMin: params.value.amountMin != null ? String(params.value.amountMin) : undefined,
+    amountMax: params.value.amountMax != null ? String(params.value.amountMax) : undefined,
     page: params.value.page !== 1 ? String(params.value.page) : undefined,
     limit: params.value.limit !== 25 ? String(params.value.limit) : undefined,
     sortBy: params.value.sortBy !== 'createdAt' ? params.value.sortBy : undefined,
@@ -160,7 +168,8 @@ const hasActiveQuery = computed(
     Boolean(params.value.responsibleId) ||
     Boolean(params.value.createdFrom) ||
     Boolean(params.value.createdTo) ||
-    params.value.amount !== undefined,
+    params.value.amountMin !== undefined ||
+    params.value.amountMax !== undefined,
 );
 
 function onPage(event: { page: number; rows: number }) {

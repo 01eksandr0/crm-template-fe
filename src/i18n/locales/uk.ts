@@ -306,6 +306,8 @@ export default {
     showMore: 'Показати додаткові',
     hideMore: 'Сховати додаткові',
     nothingFound: 'Нічого не знайдено',
+    min: 'Від',
+    max: 'До',
   },
   placeholder: {
     subtitle: 'Розділ у розробці',
@@ -324,7 +326,7 @@ export default {
     required: 'Обов’язкове поле',
     passwordMin: 'Пароль має містити щонайменше 8 символів',
     maxLength: 'Занадто довге значення',
-    phone: 'Некоректний номер телефону',
+    phone: 'Введіть повний номер: +380 (XX) XXX-XX-XX',
     quantityMin: 'Кількість має бути не менше 1',
     selectCustomer: 'Оберіть клієнта',
     itemParams: 'Заповніть параметри позиції',

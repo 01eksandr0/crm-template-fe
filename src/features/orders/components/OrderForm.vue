@@ -10,7 +10,7 @@ import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import Message from 'primevue/message';
 import PhoneInput from '@/shared/ui/PhoneInput.vue';
-import { hasPhoneDigits, formatUaPhone } from '@/shared/lib/phone';
+import { phoneValidationError, formatUaPhone } from '@/shared/lib/phone';
 import { useFormat } from '@/shared/composables/useFormat';
 import { productsApi } from '@/features/products/api/productsApi';
 import { customersApi } from '../api/customersApi';
@@ -82,13 +82,21 @@ const fieldErrors = reactive({
   deliveryExtra: '',
   items: '',
 });
+const itemErrors = ref<boolean[]>([]);
+const customerFormError = ref('');
+const customerFormErrors = reactive({
+  lastName: '',
+  firstName: '',
+  phone: '',
+  city: '',
+  deliveryExtra: '',
+});
 
 const customerSearch = ref('');
 const customerResults = ref<Customer[]>([]);
 const searchingCustomers = ref(false);
 const createCustomerOpen = ref(false);
 const creatingCustomer = ref(false);
-const customerFormError = ref('');
 const customerForm = reactive({
   lastName: '',
   firstName: '',
@@ -132,6 +140,7 @@ function hydrate(order?: Order | null) {
   fieldErrors.city = '';
   fieldErrors.deliveryExtra = '';
   fieldErrors.items = '';
+  itemErrors.value = [];
 }
 
 hydrate(props.initial);
@@ -231,6 +240,11 @@ function openCreateCustomer() {
   customerForm.deliveryPostOffice = '';
   customerForm.deliveryAddress = '';
   customerFormError.value = '';
+  customerFormErrors.lastName = '';
+  customerFormErrors.firstName = '';
+  customerFormErrors.phone = '';
+  customerFormErrors.city = '';
+  customerFormErrors.deliveryExtra = '';
   createCustomerOpen.value = true;
 }
 
@@ -238,6 +252,7 @@ function onCustomerDeliveryChange() {
   customerForm.deliveryPostOffice = '';
   customerForm.deliveryAddress = '';
   customerFormError.value = '';
+  customerFormErrors.deliveryExtra = '';
 }
 
 function onOrderDeliveryChange() {
@@ -248,24 +263,38 @@ function onOrderDeliveryChange() {
 }
 
 async function saveCustomer() {
-  if (!customerForm.lastName.trim() || !customerForm.firstName.trim()) {
-    customerFormError.value = t('validation.required');
-    return;
-  }
-  if (!hasPhoneDigits(customerForm.phone)) {
-    customerFormError.value = t('validation.phone');
-    return;
-  }
+  let ok = true;
+  if (!customerForm.lastName.trim()) {
+    customerFormErrors.lastName = t('validation.required');
+    ok = false;
+  } else customerFormErrors.lastName = '';
+
+  if (!customerForm.firstName.trim()) {
+    customerFormErrors.firstName = t('validation.required');
+    ok = false;
+  } else customerFormErrors.firstName = '';
+
+  const phoneErr = phoneValidationError(customerForm.phone, true);
+  if (phoneErr) {
+    customerFormErrors.phone = t(`validation.${phoneErr}`);
+    ok = false;
+  } else customerFormErrors.phone = '';
+
   if (!customerForm.city.trim()) {
-    customerFormError.value = t('validation.city');
-    return;
-  }
+    customerFormErrors.city = t('validation.city');
+    ok = false;
+  } else customerFormErrors.city = '';
+
   if (customerDeliveryCode.value === 'post' && !customerForm.deliveryPostOffice.trim()) {
-    customerFormError.value = t('validation.deliveryPostOffice');
-    return;
-  }
-  if (customerDeliveryCode.value === 'courier' && !customerForm.deliveryAddress.trim()) {
-    customerFormError.value = t('validation.deliveryAddress');
+    customerFormErrors.deliveryExtra = t('validation.deliveryPostOffice');
+    ok = false;
+  } else if (customerDeliveryCode.value === 'courier' && !customerForm.deliveryAddress.trim()) {
+    customerFormErrors.deliveryExtra = t('validation.deliveryAddress');
+    ok = false;
+  } else customerFormErrors.deliveryExtra = '';
+
+  if (!ok) {
+    customerFormError.value = t('validation.required');
     return;
   }
 
@@ -320,12 +349,13 @@ function validate(): boolean {
 
   if (!form.items.length) {
     fieldErrors.items = t('errors.orderItemsRequired');
+    itemErrors.value = [];
     ok = false;
   } else {
-    const bad = form.items.some(
+    itemErrors.value = form.items.map(
       (i) => !i.productId || !i.colorId || !i.materialId || !i.quantity || i.quantity < 1,
     );
-    if (bad) {
+    if (itemErrors.value.some(Boolean)) {
       fieldErrors.items = t('validation.itemParams');
       ok = false;
     } else fieldErrors.items = '';
@@ -358,7 +388,7 @@ function onSubmit() {
 </script>
 
 <template>
-  <form class="flex flex-col gap-6" @submit.prevent="onSubmit">
+  <form class="flex flex-col gap-6" novalidate @submit.prevent="onSubmit">
     <section class="overflow-hidden rounded-xl border border-slate-200 bg-white">
       <h2 class="border-b border-slate-100 px-5 py-4 text-[15px] font-semibold text-slate-900">
         {{ t('common.basicInfo') }}
@@ -386,6 +416,7 @@ function onSubmit() {
                 class="w-full"
                 :placeholder="t('orders.customerSearchPlaceholder')"
                 :disabled="readonly || submitting"
+                :invalid="!!fieldErrors.customerId"
                 @input="onCustomerQuery"
               />
               <div
@@ -433,6 +464,7 @@ function onSubmit() {
               class="w-full"
               :disabled="readonly || submitting"
               :placeholder="t('orders.fields.city')"
+              :invalid="!!fieldErrors.city"
             />
             <small v-if="fieldErrors.city" class="text-red-600">{{ fieldErrors.city }}</small>
           </div>
@@ -466,6 +498,7 @@ function onSubmit() {
               class="w-full"
               :disabled="readonly || submitting"
               :placeholder="t('orders.fields.deliveryPostOffice')"
+              :invalid="!!fieldErrors.deliveryExtra"
             />
             <small v-if="fieldErrors.deliveryExtra" class="text-red-600">
               {{ fieldErrors.deliveryExtra }}
@@ -484,6 +517,7 @@ function onSubmit() {
               class="w-full"
               :disabled="readonly || submitting"
               :placeholder="t('orders.fields.deliveryAddress')"
+              :invalid="!!fieldErrors.deliveryExtra"
             />
             <small v-if="fieldErrors.deliveryExtra" class="text-red-600">
               {{ fieldErrors.deliveryExtra }}
@@ -550,6 +584,7 @@ function onSubmit() {
                 filter
                 class="w-full"
                 :disabled="readonly || submitting"
+                :invalid="itemErrors[index] && !item.productId"
                 @update:model-value="onProductChange(item)"
               />
             </div>
@@ -561,6 +596,7 @@ function onSubmit() {
                 class="w-full"
                 input-class="w-full"
                 :disabled="readonly || submitting"
+                :invalid="itemErrors[index] && (!item.quantity || item.quantity < 1)"
                 @update:model-value="onQtyChange(item)"
               />
             </div>
@@ -577,6 +613,7 @@ function onSubmit() {
                 option-value="id"
                 class="w-full"
                 :disabled="readonly || submitting"
+                :invalid="itemErrors[index] && !item.colorId"
               />
             </div>
             <div class="flex flex-col gap-1">
@@ -588,6 +625,7 @@ function onSubmit() {
                 option-value="id"
                 class="w-full"
                 :disabled="readonly || submitting"
+                :invalid="itemErrors[index] && !item.materialId"
               />
             </div>
             <div class="flex flex-col gap-1">
@@ -661,11 +699,23 @@ function onSubmit() {
       class="w-full max-w-lg"
     >
       <div class="flex flex-col gap-3">
-        <InputText v-model="customerForm.lastName" :placeholder="t('orders.customerFields.lastName') + ' *'" />
-        <InputText v-model="customerForm.firstName" :placeholder="t('orders.customerFields.firstName') + ' *'" />
+        <InputText
+          v-model="customerForm.lastName"
+          :placeholder="t('orders.customerFields.lastName') + ' *'"
+          :invalid="!!customerFormErrors.lastName"
+        />
+        <InputText
+          v-model="customerForm.firstName"
+          :placeholder="t('orders.customerFields.firstName') + ' *'"
+          :invalid="!!customerFormErrors.firstName"
+        />
         <InputText v-model="customerForm.middleName" :placeholder="t('orders.customerFields.middleName')" />
-        <PhoneInput v-model="customerForm.phone" />
-        <InputText v-model="customerForm.city" :placeholder="t('orders.customerFields.city') + ' *'" />
+        <PhoneInput v-model="customerForm.phone" :invalid="!!customerFormErrors.phone" />
+        <InputText
+          v-model="customerForm.city"
+          :placeholder="t('orders.customerFields.city') + ' *'"
+          :invalid="!!customerFormErrors.city"
+        />
         <Select
           v-model="customerForm.deliveryMethodId"
           :options="deliveryMethods ?? []"
@@ -680,11 +730,13 @@ function onSubmit() {
           v-if="customerDeliveryCode === 'post'"
           v-model="customerForm.deliveryPostOffice"
           :placeholder="t('orders.customerFields.deliveryPostOffice') + ' *'"
+          :invalid="!!customerFormErrors.deliveryExtra"
         />
         <InputText
           v-if="customerDeliveryCode === 'courier'"
           v-model="customerForm.deliveryAddress"
           :placeholder="t('orders.customerFields.deliveryAddress') + ' *'"
+          :invalid="!!customerFormErrors.deliveryExtra"
         />
         <small v-if="customerFormError" class="text-red-600">{{ customerFormError }}</small>
       </div>

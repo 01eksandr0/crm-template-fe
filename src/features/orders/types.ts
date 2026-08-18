@@ -59,7 +59,8 @@ export interface OrdersListParams {
   responsibleId?: string;
   createdFrom?: string;
   createdTo?: string;
-  amount?: number;
+  amountMin?: number;
+  amountMax?: number;
   sortBy?: 'createdAt' | 'number' | 'totalAmount';
   sortOrder?: 'asc' | 'desc';
 }

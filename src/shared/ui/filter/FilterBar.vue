@@ -7,6 +7,7 @@ import Button from 'primevue/button';
 import Select from 'primevue/select';
 import DatePicker from 'primevue/datepicker';
 import Chip from 'primevue/chip';
+import { toNumberRangeTuple, toOptionalFiniteNumber } from '@/shared/lib/numberRange';
 import type { FilterField, FilterValues } from './types';
 
 const props = withDefaults(
@@ -75,6 +76,16 @@ const chips = computed(() => {
       result.push({ key: field.key, label: `${field.label}: ${formatDateChip(raw)}` });
     } else if (field.type === 'number' && typeof raw === 'number') {
       result.push({ key: field.key, label: `${field.label}: ${raw}` });
+    } else if (field.type === 'numberRange') {
+      const tuple = toNumberRangeTuple(raw);
+      if (!tuple) continue;
+      const [from, to] = tuple;
+      let rangeLabel = field.label;
+      if (from != null && to != null) {
+        rangeLabel = from === to ? `${field.label}: ${from}` : `${field.label}: ${from} – ${to}`;
+      } else if (from != null) rangeLabel = `${field.label}: ${t('filter.min')} ${from}`;
+      else rangeLabel = `${field.label}: ${t('filter.max')} ${to}`;
+      result.push({ key: field.key, label: rangeLabel });
     }
   }
   return result;
@@ -85,12 +96,23 @@ function emitApply(next: FilterValues) {
   emit('apply', next);
 }
 
+function withNormalizedRanges(values: FilterValues): FilterValues {
+  const next = { ...values };
+  for (const field of props.fields) {
+    if (field.type !== 'numberRange') continue;
+    next[field.key] = toNumberRangeTuple(next[field.key]);
+  }
+  return next;
+}
+
 function apply() {
   if (searchTimer) {
     clearTimeout(searchTimer);
     searchTimer = null;
   }
-  emitApply({ ...draft });
+  const next = withNormalizedRanges({ ...draft });
+  Object.assign(draft, next);
+  emitApply(next);
   open.value = false;
 }
 
@@ -119,6 +141,28 @@ function reset() {
   Object.assign(draft, empty);
   emitApply(empty);
   open.value = false;
+}
+
+function numberRangeValue(key: string): [number | null, number | null] {
+  const raw = draft[key];
+  if (Array.isArray(raw)) {
+    return [toOptionalFiniteNumber(raw[0]) ?? null, toOptionalFiniteNumber(raw[1]) ?? null];
+  }
+  return [null, null];
+}
+
+function setNumberRange(key: string, index: 0 | 1, value: number | null | undefined) {
+  const next = numberRangeValue(key);
+  next[index] = toOptionalFiniteNumber(value) ?? null;
+  draft[key] = next[0] == null && next[1] == null ? null : next;
+}
+
+/** Якщо мін > макс — swap після виходу з пари полів, не під час набору. */
+function onNumberRangeFocusOut(key: string, event: FocusEvent) {
+  const root = event.currentTarget as HTMLElement | null;
+  const next = event.relatedTarget as Node | null;
+  if (root && next && root.contains(next)) return;
+  draft[key] = toNumberRangeTuple(draft[key]);
 }
 
 function removeChip(key: string) {
@@ -232,6 +276,35 @@ onBeforeUnmount(() => {
               :max-fraction-digits="field.fractionDigits ?? 2"
               :placeholder="field.placeholder"
             />
+            <div
+              v-else-if="field.type === 'numberRange'"
+              class="flex items-center gap-2"
+              @focusout="onNumberRangeFocusOut(field.key, $event)"
+            >
+              <InputNumber
+                :model-value="numberRangeValue(field.key)[0]"
+                class="w-full"
+                input-class="w-full"
+                :min="field.min"
+                :max="field.max"
+                :min-fraction-digits="0"
+                :max-fraction-digits="field.fractionDigits ?? 2"
+                :placeholder="t('filter.min')"
+                @update:model-value="setNumberRange(field.key, 0, $event)"
+              />
+              <span class="shrink-0 text-slate-400">–</span>
+              <InputNumber
+                :model-value="numberRangeValue(field.key)[1]"
+                class="w-full"
+                input-class="w-full"
+                :min="field.min"
+                :max="field.max"
+                :min-fraction-digits="0"
+                :max-fraction-digits="field.fractionDigits ?? 2"
+                :placeholder="t('filter.max')"
+                @update:model-value="setNumberRange(field.key, 1, $event)"
+              />
+            </div>
           </div>
         </div>
 

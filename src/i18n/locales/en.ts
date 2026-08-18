@@ -306,6 +306,8 @@ export default {
     showMore: 'Show more',
     hideMore: 'Hide more',
     nothingFound: 'Nothing found',
+    min: 'From',
+    max: 'To',
   },
   placeholder: {
     subtitle: 'Section under construction',
@@ -323,7 +325,7 @@ export default {
     required: 'Required field',
     passwordMin: 'Password must be at least 8 characters',
     maxLength: 'Value is too long',
-    phone: 'Invalid phone number',
+    phone: 'Enter a complete number: +380 (XX) XXX-XX-XX',
     quantityMin: 'Quantity must be at least 1',
     selectCustomer: 'Select a customer',
     itemParams: 'Fill in item parameters',
